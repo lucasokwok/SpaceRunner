@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Runner</title>
+    <link rel="stylesheet" href="../src/ui/hud/hud.css">
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000; 
+
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="glCanvas"></canvas>
+    
+     <div id="ui-layer">
+        <!-- hud -->
+        <div class="hud-top-bar">
+            
+            <!-- points -->
+            <div class="hud-stat">
+                <span class="icon-star">★</span> 
+                <span>SCORE:</span>
+                <span id="hud-score-value">0</span>
+            </div>
+
+            <!-- lifes -->
+            <div class="hud-stat">
+                <span class="icon-heart">❤</span> 
+                <span>LIVES:</span>
+                <span id="hud-lives-value">3</span>
+            </div>
+
+            <!-- level -->
+            <div class="hud-stat">
+                <span class="icon-difficulty">⚡</span> 
+                <span>LEVEL:</span>
+                <span id="hud-level-value">1</span>
+            </div>
+
+        </div>
+
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>
