@@ -1,5 +1,7 @@
 import { initWebGL, resizeCanvasToDisplaySize } from './webgl/initGL.js';
 import { createShader, createProgram, loadShader } from './webgl/shaderUtils.js';
+import { loadOBJModel } from './webgl/objLoader.js';
+import { loadTexture } from './webgl/textureLoader.js';
 import { Camera } from './webgl/camera.js';
 import { Ship } from './game/player.js';
 import { World } from './game/world.js';
@@ -35,23 +37,33 @@ async function init() {
         attribLocations: {
             position: gl.getAttribLocation(shaderProgram, 'aPosition'),
             color: gl.getAttribLocation(shaderProgram, 'aColor'),
+            normal: gl.getAttribLocation(shaderProgram, 'aNormal'),
+            texCoord: gl.getAttribLocation(shaderProgram, 'aTexCoord'),
         },
         uniformLocations: {
             modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
             projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+            textureSampler: gl.getUniformLocation(shaderProgram, 'uTexture'),
+            useTexture: gl.getUniformLocation(shaderProgram, 'uUseTexture'),
         },
     };
 
-    ship = new Ship(gl);
-    world = new World(gl, 20);                 
-    asteroidManager = new AsteroidManager(gl, ship);
+    const [shipModel, asteroidModel] = await Promise.all([
+        loadOBJModel(gl, './models/playership.obj'),
+        loadOBJModel(gl, './models/asteroid01.obj'),
+    ]);
+
+    const shipTexture = loadTexture(gl, './textures/playership.png');
+
+    ship = new Ship(gl, shipModel, shipTexture);
+    world = new World(gl, 20);
+    asteroidManager = new AsteroidManager(gl, ship, asteroidModel);
 
     camera = new Camera();
     camera.updateProjectionMatrix(gl.canvas.width / gl.canvas.height);
 
     console.log('posicao da nave', ship.getPosition());
 
-    // troca modo da camera
     window.addEventListener('keydown', (e) => {
         if (e.key === '1') {
             cameraModeIndex = 0;
@@ -93,21 +105,15 @@ function draw() {
     const viewMatrix = camera.getViewMatrix();
     const projectionMatrix = camera.getProjectionMatrix();
 
-    // Desenha o grid
-    // adicionar textura de espaço
+    if (programInfo.uniformLocations.useTexture) {
+        gl.uniform1i(programInfo.uniformLocations.useTexture, 0);
+    }
+
     world.draw(programInfo, viewMatrix, projectionMatrix);
-
-    // desenha asteroides
-    //add textuda de asteroide
     asteroidManager.draw(programInfo, viewMatrix, projectionMatrix);
-
-    // desenha nave
     ship.draw(programInfo, viewMatrix, projectionMatrix);
 }
 
-// =========================
-//         LOOP RENDER
-// =========================
 function render(currentTime) {
     currentTime *= 0.001;
     const deltaTime = currentTime - time;
@@ -124,9 +130,6 @@ function render(currentTime) {
     requestAnimationFrame(render);
 }
 
-// =========================
-//      INICIALIZA JOGO
-// =========================
 async function initGame() {
     await init();
     hud = new HUD();

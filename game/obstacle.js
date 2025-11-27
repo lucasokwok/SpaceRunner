@@ -1,10 +1,9 @@
 import { mat4 } from 'https://cdn.skypack.dev/gl-matrix';
-import { Sphere } from '../primitives/sphere.js';
 
 export class Asteroid {
-    constructor(gl, x, z, speed) {
+    constructor(gl, x, z, speed, model) {
         this.gl = gl;
-        this.sphere = new Sphere(gl, 12);
+        this.model = model;
         
         this.x = x;
         this.y = 0.5; 
@@ -85,16 +84,57 @@ export class Asteroid {
             modelViewMatrix
         );
         
-        // Draw sphere
-        this.sphere.draw(programInfo);
+        const gl = this.gl;
+
+        if (programInfo.attribLocations.position !== -1 && this.model.positionBuffer) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.model.positionBuffer);
+            gl.vertexAttribPointer(
+                programInfo.attribLocations.position,
+                3,
+                gl.FLOAT,
+                false,
+                0,
+                0
+            );
+            gl.enableVertexAttribArray(programInfo.attribLocations.position);
+        }
+
+        if (programInfo.attribLocations.normal !== undefined &&
+            programInfo.attribLocations.normal !== -1 &&
+            this.model.normalBuffer) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.model.normalBuffer);
+            gl.vertexAttribPointer(
+                programInfo.attribLocations.normal,
+                3,
+                gl.FLOAT,
+                false,
+                0,
+                0
+            );
+            gl.enableVertexAttribArray(programInfo.attribLocations.normal);
+        }
+
+        if (programInfo.attribLocations.texCoord !== undefined &&
+            programInfo.attribLocations.texCoord !== -1) {
+            gl.disableVertexAttribArray(programInfo.attribLocations.texCoord);
+        }
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.model.indexBuffer);
+        gl.drawElements(
+            this.gl.TRIANGLES,
+            this.model.indexCount,
+            this.gl.UNSIGNED_SHORT,
+            0
+        );
     }
 }
 
 export class AsteroidManager {
-    constructor(gl, shipReference) {
+    constructor(gl, shipReference, asteroidModel) {
         this.gl = gl;
         this.ship = shipReference;
         this.asteroids = [];
+        this.asteroidModel = asteroidModel;
         
         // configuracoes de spawn de asteroide
         this.spawnTimer = 0;
@@ -173,7 +213,7 @@ export class AsteroidManager {
             const z = shipPos[2] + this.spawnDistance + (Math.random() - 0.5) * 2;
             
             const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
-            const asteroid = new Asteroid(this.gl, x, z, speed);
+            const asteroid = new Asteroid(this.gl, x, z, speed, this.asteroidModel);
             this.asteroids.push(asteroid);
         }
     }
@@ -199,7 +239,7 @@ export class AsteroidManager {
         // gera velocidade aleatoria
         const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
         
-        const asteroid = new Asteroid(this.gl, x, z, speed);
+        const asteroid = new Asteroid(this.gl, x, z, speed, this.asteroidModel);
         this.asteroids.push(asteroid);
     }
     
