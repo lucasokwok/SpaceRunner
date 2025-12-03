@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Runner</title>
+    <title>WebGL Game</title>
+    <link rel="stylesheet" href="./ui/hud/hud.css">
+    <link rel="stylesheet" href="./ui/gameOver.css">
 
     <style>
         body {
@@ -40,7 +42,7 @@
                 <span id="hud-lives-value">3</span>
             </div>
 
-            <!-- level -->
+            <!-- difficulty level -->
             <div class="hud-stat">
                 <span class="icon-difficulty">⚡</span> 
                 <span>LEVEL:</span>
@@ -48,8 +50,28 @@
             </div>
 
         </div>
-
+        
+        <!-- Boss Health Bar (top center) -->
+        <div class="boss-health-container" id="boss-health-bar" style="display: none;">
+            <div class="boss-label">⚠️ BOSS ⚠️</div>
+            <div class="boss-health-bar-container">
+                <div class="boss-health-bar-fill" id="boss-health-fill"></div>
+            </div>
+            <div class="boss-health-text" id="boss-health-text">10/10</div>
+        </div>
+        
+        <!-- Speed indicator (bottom center) -->
+        <div class="hud-bottom-bar">
+            <div class="speed-indicator">
+                <div class="speed-label" id="speed-label">SPEED</div>
+                <div class="speed-bar-container">
+                    <div class="speed-bar-fill" id="speed-bar-fill"></div>
+                </div>
+                <div class="speed-value" id="speed-value">0%</div>
+            </div>
+        </div>
     </div>
     <script type="module" src="main.js"></script>
+    <script src="m4.js"></script>
 </body>
 </html>

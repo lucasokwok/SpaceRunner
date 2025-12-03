@@ -1,5 +1,3 @@
-import { mat4 } from 'https://cdn.skypack.dev/gl-matrix';
-
 export class World {
     constructor(gl, gridSize = 20) {
         this.gl = gl;
@@ -38,16 +36,14 @@ export class World {
     }
 
     draw(programInfo, viewMatrix, projectionMatrix) {
-        const modelMatrix = mat4.create();
-        const modelViewMatrix = mat4.create();
-        
-        mat4.translate(modelMatrix, modelMatrix, [0, -0.1, 0]);
-        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
+        let modelMatrix = m4.identity();
+        modelMatrix = m4.translate(modelMatrix, 0, -0.1, 0);
+        const modelViewMatrix = m4.multiply(viewMatrix, modelMatrix);
 
         this.gl.uniformMatrix4fv(
             programInfo.uniformLocations.modelViewMatrix,
             false,
-            modelViewMatrix
+            new Float32Array(modelViewMatrix)
         );
 
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);

@@ -1,0 +1,122 @@
+/* Game Over Screen */
+.game-over-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.game-over-screen.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.game-over-content {
+    text-align: center;
+    color: white;
+    font-family: 'Arial', sans-serif;
+    animation: fadeInScale 0.8s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.game-over-title {
+    font-size: 80px;
+    font-weight: bold;
+    color: #ff3333;
+    text-shadow: 0 0 20px rgba(255, 51, 51, 0.8),
+                 0 0 40px rgba(255, 51, 51, 0.5);
+    margin-bottom: 30px;
+    letter-spacing: 10px;
+}
+
+.game-over-stats {
+    font-size: 24px;
+    margin-bottom: 40px;
+    line-height: 1.8;
+}
+
+.game-over-stats .stat-label {
+    color: #aaa;
+    margin-right: 10px;
+}
+
+.game-over-stats .stat-value {
+    color: #fff;
+    font-weight: bold;
+    font-size: 28px;
+}
+
+.game-over-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.game-over-button {
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.restart-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.restart-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.restart-button:active {
+    transform: translateY(-1px);
+}
+
+.quit-button {
+    background: linear-gradient(135deg, #666 0%, #333 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.quit-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+    background: linear-gradient(135deg, #777 0%, #444 100%);
+}
+
+.quit-button:active {
+    transform: translateY(-1px);
+}
+
+/* Animation for score */
+.score-highlight {
+    color: #ffd700 !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}

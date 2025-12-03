@@ -1,140 +1,181 @@
-import { mat4 } from 'https://cdn.skypack.dev/gl-matrix';
+import { loadOBJWithMTL } from '../webgl/objLoader.js';
 
 export class Asteroid {
-    constructor(gl, x, z, speed, model) {
+    constructor(gl, x, z, speed) {
         this.gl = gl;
-        this.model = model;
-        
+
         this.x = x;
         this.y = 0.5; 
         this.z = z;
-        
+
         this.speed = speed;
-        this.velocityZ = -speed; // -z em direcao a camera
-        
-        this.scale = 0.3 + Math.random() * 0.4; // tamanho aleatorio
+        this.velocityZ = -speed; 
+
+        // aleatorizacao
+        this.scale = 0.3 + Math.random() * 0.4; 
         this.rotationX = Math.random() * Math.PI * 2;
         this.rotationY = Math.random() * Math.PI * 2;
         this.rotationZ = Math.random() * Math.PI * 2;
         this.rotationSpeedX = (Math.random() - 0.5) * 2;
         this.rotationSpeedY = (Math.random() - 0.5) * 2;
         this.rotationSpeedZ = (Math.random() - 0.5) * 2;
-        
+
         this.active = true;
+
+        // importa obj
+        this.modelParts = null;
+        this.modelLoaded = false;
+        this.modelUrl = 'assets/asteroid/scene.obj';
+
+        this.loadModel();
     }
-    
+
+    async loadModel() {
+        try {
+            const model = await loadOBJWithMTL(this.gl, this.modelUrl);
+            this.modelParts = model.parts;
+            this.modelLoaded = true;
+            console.log('asteroid.obj carregado');
+        } catch (err) {
+            this.modelLoaded = false;
+        }
+    }
+
     update(deltaTime) {
+        // em direcao a camera +z
         this.z += this.velocityZ * deltaTime;
-        
+
         this.rotationX += this.rotationSpeedX * deltaTime;
         this.rotationY += this.rotationSpeedY * deltaTime;
         this.rotationZ += this.rotationSpeedZ * deltaTime;
-        
+
+        // apaga se passar da camera em -15
         if (this.z < -15) {
             this.active = false;
         }
     }
-    
+
     getPosition() {
         return [this.x, this.y, this.z];
     }
-    
+
     getRadius() {
         return this.scale;
     }
-    
+
     isActive() {
         return this.active;
     }
-    
+
     isPassed(shipZ) {
-        // se passou a nave
+        // se passou da nave
         return this.z < shipZ - 2;
     }
-    
+
     checkCollision(shipPosition, shipRadius = 0.5) {
         const dx = this.x - shipPosition[0];
         const dy = this.y - shipPosition[1];
         const dz = this.z - shipPosition[2];
         const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        
+
         return distance < (this.scale + shipRadius);
     }
-    
+
     draw(programInfo, viewMatrix, projectionMatrix) {
-        const modelMatrix = mat4.create();
-        const modelViewMatrix = mat4.create();
-        
-        // Position
-        mat4.translate(modelMatrix, modelMatrix, [this.x, this.y, this.z]);
-        
-        // Rotation
-        mat4.rotateX(modelMatrix, modelMatrix, this.rotationX);
-        mat4.rotateY(modelMatrix, modelMatrix, this.rotationY);
-        mat4.rotateZ(modelMatrix, modelMatrix, this.rotationZ);
-        
-        // Scale
-        mat4.scale(modelMatrix, modelMatrix, [this.scale, this.scale, this.scale]);
-        mat4.multiply(modelViewMatrix, viewMatrix, modelMatrix);
-        
-        // Set uniforms
-        this.gl.uniformMatrix4fv(
-            programInfo.uniformLocations.modelViewMatrix,
-            false,
-            modelViewMatrix
+        if (!this.modelLoaded || !this.modelParts || this.modelParts.length === 0) {
+            return;
+        }
+
+        let modelMatrix = m4.identity();
+
+        modelMatrix = m4.scale(
+            modelMatrix,
+            this.scale,
+            this.scale,
+            this.scale
         );
-        
+
+        modelMatrix = m4.xRotate(modelMatrix, this.rotationX);
+        modelMatrix = m4.yRotate(modelMatrix, this.rotationY);
+        modelMatrix = m4.zRotate(modelMatrix, this.rotationZ);
+
+        modelMatrix = m4.translate(
+            modelMatrix,
+            this.x,
+            this.y,
+            this.z
+        );
+
+        this.drawOBJ(programInfo, viewMatrix, modelMatrix);
+    }
+
+    drawOBJ(programInfo, viewMatrix, modelMatrix) {
         const gl = this.gl;
 
-        if (programInfo.attribLocations.position !== -1 && this.model.positionBuffer) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.model.positionBuffer);
-            gl.vertexAttribPointer(
-                programInfo.attribLocations.position,
-                3,
-                gl.FLOAT,
-                false,
-                0,
-                0
-            );
-            gl.enableVertexAttribArray(programInfo.attribLocations.position);
-        }
+        const positionLoc   = programInfo.attribLocations.vertexPosition;
+        const texcoordLoc   = programInfo.attribLocations.textureCoord;
+        const useTexLoc     = programInfo.uniformLocations.useTexture;
+        const texSamplerLoc = programInfo.uniformLocations.texture;
 
-        if (programInfo.attribLocations.normal !== undefined &&
-            programInfo.attribLocations.normal !== -1 &&
-            this.model.normalBuffer) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.model.normalBuffer);
-            gl.vertexAttribPointer(
-                programInfo.attribLocations.normal,
-                3,
-                gl.FLOAT,
-                false,
-                0,
-                0
-            );
-            gl.enableVertexAttribArray(programInfo.attribLocations.normal);
-        }
+        const modelViewMatrix = m4.multiply(viewMatrix, modelMatrix);
 
-        if (programInfo.attribLocations.texCoord !== undefined &&
-            programInfo.attribLocations.texCoord !== -1) {
-            gl.disableVertexAttribArray(programInfo.attribLocations.texCoord);
-        }
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.model.indexBuffer);
-        gl.drawElements(
-            this.gl.TRIANGLES,
-            this.model.indexCount,
-            this.gl.UNSIGNED_SHORT,
-            0
+        gl.uniformMatrix4fv(
+            programInfo.uniformLocations.modelViewMatrix,
+            false,
+            new Float32Array(modelViewMatrix)
         );
+
+        if (useTexLoc) {
+            gl.uniform1i(useTexLoc, 1);
+        }
+
+        for (const part of this.modelParts) {
+            const {
+                vertexBuffer,
+                texcoordBuffer,
+                indexBuffer,
+                indexCount,
+                texture,
+            } = part;
+
+            // Posição
+            if (positionLoc !== undefined && positionLoc >= 0 && vertexBuffer) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+                gl.enableVertexAttribArray(positionLoc);
+                gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+            }
+
+            // Coordenadas de textura
+            if (texcoordLoc !== undefined && texcoordLoc >= 0 && texcoordBuffer) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+                gl.enableVertexAttribArray(texcoordLoc);
+                gl.vertexAttribPointer(texcoordLoc, 2, gl.FLOAT, false, 0, 0);
+            }
+
+            // Índices
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+            // Textura da parte
+            if (texture && texSamplerLoc) {
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.uniform1i(texSamplerLoc, 0);
+            }
+
+            gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, 0);
+        }
+
+        if (useTexLoc) {
+            gl.uniform1i(useTexLoc, 0);
+        }
     }
 }
 
 export class AsteroidManager {
-    constructor(gl, shipReference, asteroidModel) {
+    constructor(gl, shipReference) {
         this.gl = gl;
         this.ship = shipReference;
         this.asteroids = [];
-        this.asteroidModel = asteroidModel;
         
         // configuracoes de spawn de asteroide
         this.spawnTimer = 0;
@@ -154,13 +195,18 @@ export class AsteroidManager {
         this.nextDifficultyTime = this.difficultyInterval;
         
         this.waveTimer = 0;
-        this.waveInterval = 5; 
+        this.waveInterval = 5;
         this.isWaveActive = false;
     }
     
     update(deltaTime) {
         this.gameTime += deltaTime;
-
+        
+        if (this.gameTime >= this.nextDifficultyTime) {
+            this.aumentaDificuldade();
+            this.nextDifficultyTime += this.difficultyInterval;
+        }
+        
         this.waveTimer += deltaTime;
         if (this.waveTimer >= this.waveInterval) {
             this.spawnWave();
@@ -175,33 +221,51 @@ export class AsteroidManager {
         }
         
         const shipPos = this.ship.getPosition();
-        let scoreGanho = 0;
+        let scoreGained = 0;
         
         for (let i = this.asteroids.length - 1; i >= 0; i--) {
             const asteroid = this.asteroids[i];
             asteroid.update(deltaTime);
             
+            // apaga asteroids desativados
             if (!asteroid.isActive()) {
                 this.asteroids.splice(i, 1);
                 continue;
             }
             
-            // se asteroide passar a nave + 10 de score
+            // se passou ganha 10 pontos por asteroid
             if (asteroid.isPassed(shipPos[2]) && !asteroid.scored) {
                 asteroid.scored = true;
-                scoreGanho += 10;
+                scoreGained += 10;
             }
             
             if (asteroid.checkCollision(shipPos)) {
                 console.log('aconteceu colisao');
                 this.asteroids.splice(i, 1);
-                return { collision: true, position: asteroid.getPosition(), scoreGanho: 0 };
+                return { collision: true, position: asteroid.getPosition(), scoreGained: 0 };
             }
         }
         
-        return { collision: false, scoreGanho: scoreGanho };
+        return { collision: false, scoreGained: scoreGained };
     }
-
+    
+    aumentaDificuldade() {
+        this.difficultyLevel++;
+        
+        // aumenta spawn de asteroid
+        this.spawnInterval = Math.max(0.3, this.baseSpawnInterval - (this.difficultyLevel * 0.08));
+        
+        // aumenta velocidade de asteroid
+        this.minSpeed = this.baseMinSpeed + (this.difficultyLevel * 0.4);
+        this.maxSpeed = this.baseMaxSpeed + (this.difficultyLevel * 0.6);
+        
+        this.spawnRangeX = this.baseSpawnRangeX + (this.difficultyLevel * 2);
+        
+        this.spawnDistance = 15 + (this.difficultyLevel * 0.3);
+        
+        console.log('subiu dificuldade');
+    }
+    
     spawnWave() {
         const waveSize = 2 + Math.floor(Math.random() * 3);
         const shipPos = this.ship.getPosition();
@@ -213,7 +277,7 @@ export class AsteroidManager {
             const z = shipPos[2] + this.spawnDistance + (Math.random() - 0.5) * 2;
             
             const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
-            const asteroid = new Asteroid(this.gl, x, z, speed, this.asteroidModel);
+            const asteroid = new Asteroid(this.gl, x, z, speed);
             this.asteroids.push(asteroid);
         }
     }
@@ -221,13 +285,11 @@ export class AsteroidManager {
     spawnAsteroid() {
         const shipPos = this.ship.getPosition();
         
-        // 75% chance de spawnar perto direcao da nave (corredor central)
-        // 25% chance de spawnar nas laterais (variação)
         let x;
-        const spawnCorredor = Math.random() < 0.75;
+        const spawnInCorridor = Math.random() < 0.75;
         
-        if (spawnCorredor) {
-            const corridorWidth = 5; 
+        if (spawnInCorridor) {
+            const corridorWidth = 5;
             x = shipPos[0] + (Math.random() - 0.5) * corridorWidth;
         } else {
             const sideOffset = 4 + Math.random() * (this.spawnRangeX - 4);
@@ -235,16 +297,13 @@ export class AsteroidManager {
         }
         
         const z = shipPos[2] + this.spawnDistance;
-        
-        // gera velocidade aleatoria
         const speed = this.minSpeed + Math.random() * (this.maxSpeed - this.minSpeed);
         
-        const asteroid = new Asteroid(this.gl, x, z, speed, this.asteroidModel);
+        const asteroid = new Asteroid(this.gl, x, z, speed);
         this.asteroids.push(asteroid);
     }
     
     reset() {
-        //zera inicializa todas as var
         this.asteroids = [];
         this.spawnTimer = 0;
         this.waveTimer = 0;

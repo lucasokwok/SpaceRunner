@@ -1,7 +1,8 @@
 export class Sphere {
-    constructor(gl, segments = 16) {
+    constructor(gl, segments = 16, color = null) { //agora recebe parametro cor
         this.gl = gl;
         this.segments = segments;
+        this.color = color; 
         this.initBuffers();
     }
 
@@ -10,7 +11,8 @@ export class Sphere {
         const colors = [];
         const indices = [];
 
-        // Generate sphere vertices
+        const cor = Array.isArray(this.color) && this.color.length === 4;
+
         for (let lat = 0; lat <= this.segments; lat++) {
             const theta = (lat * Math.PI) / this.segments;
             const sinTheta = Math.sin(theta);
@@ -27,15 +29,11 @@ export class Sphere {
 
                 positions.push(x, y, z);
                 
-                // Gray/brown color for asteroid look
-                const r = 0.5 + Math.random() * 0.2;
-                const g = 0.4 + Math.random() * 0.2;
-                const b = 0.3 + Math.random() * 0.2;
-                colors.push(r, g, b, 1.0);
+                const [r, g, b, a] = this.color;
+                colors.push(r, g, b, a);
             }
         }
 
-        // Generate indices
         for (let lat = 0; lat < this.segments; lat++) {
             for (let lon = 0; lon < this.segments; lon++) {
                 const first = lat * (this.segments + 1) + lon;
