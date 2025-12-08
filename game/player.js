@@ -3,31 +3,30 @@ import { loadOBJWithMTL } from '../webgl/objLoader.js';
 export class Ship {
     constructor(gl) {
         this.gl = gl;
-        
-        // .obj da nave
+
         this.modelParts = null;
         this.modelLoaded = false;
         this.modelUrl = 'assets/ship/ship.obj';
-
+    
         this.loadModel();
 
         this.gridX = 0;
         this.gridZ = 0;
         this.gridSize = 1.0;
-        
+
         this.baseSpeed = 0.12;
         this.currentSpeed = this.baseSpeed;
         this.speedMultiplier = 1.0;
         this.velocity = { x: 0, z: 0 };
-        
+
         this.isMoving = false;
         this.currentLevel = 1;
-        
+
         this.accelerationMultiplier = 1.0;
         this.maxAccelerationMultiplier = 1.40;
         this.accelerationRate = 0.3;
         this.decelerationRate = 2.0;
-        
+
         this.keys = {
             w: false,
             a: false,
@@ -35,18 +34,16 @@ export class Ship {
             d: false,
             space: false
         };
-        
-        // projetil
+
+        this.tilt = 0;
+        this.maxTilt = Math.PI / 10; // ~18 graus
+        this.tiltSpeed = 6.0;
         this.canShoot = true;
         this.shootCooldown = 0.3;
         this.shootTimer = 0;
-        
+
         this.setupInput();
     }
-
-    //==================
-    //  CARREGADNO OBJ
-    //==================
 
     async loadModel() {
         try {
@@ -54,13 +51,10 @@ export class Ship {
             this.modelParts = model.parts;
             this.modelLoaded = true;
         } catch (err) {
+            console.error("Erro ao carregar modelo:", err);
             this.modelLoaded = false;
         }
     }
-
-    //==================
-    //    CONTROLES
-    //==================
 
     setupInput() {
         window.addEventListener('keydown', (e) => {
@@ -71,7 +65,7 @@ export class Ship {
                 this.keys[key] = true;
             }
         });
-        
+
         window.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             if (key === ' ' || key === 'space') {
@@ -81,11 +75,9 @@ export class Ship {
             }
         });
     }
-
     update(deltaTime) {
         this.isMoving = this.keys.w || this.keys.s || this.keys.a || this.keys.d;
-        
-        // cooldown
+
         if (this.shootTimer > 0) {
             this.shootTimer -= deltaTime;
             if (this.shootTimer <= 0) {
@@ -93,86 +85,85 @@ export class Ship {
             }
         }
 
-        // aumenta velocidade pelo nivel
-        this.currentSpeed = this.baseSpeed * this.speedMultiplier * this.accelerationMultiplier;
-        
+        this.currentSpeed =
+            this.baseSpeed *
+            this.speedMultiplier *
+            this.accelerationMultiplier;
+
         this.velocity.x = 0;
         this.velocity.z = 0;
-        
-        if (this.keys.w) {
-            this.velocity.z += this.currentSpeed;// frente
-        }
-        if (this.keys.s) {
-            this.velocity.z -= this.currentSpeed; // tras
-        }
-        if (this.keys.a) {
-            this.velocity.x += this.currentSpeed; // direito
-        }
-        if (this.keys.d) {
-            this.velocity.x -= this.currentSpeed; // esquerdo
-        }
-        
-        // atualiza posicao
+
+        if (this.keys.w) this.velocity.z += this.currentSpeed;
+        if (this.keys.s) this.velocity.z -= this.currentSpeed;
+        if (this.keys.a) this.velocity.x += this.currentSpeed;
+        if (this.keys.d) this.velocity.x -= this.currentSpeed;
+
         this.gridX += this.velocity.x;
         this.gridZ += this.velocity.z;
-        
+
         const maxRange = 10;
         this.gridX = Math.max(-maxRange, Math.min(maxRange, this.gridX));
         this.gridZ = Math.max(-maxRange, Math.min(maxRange, this.gridZ));
+
+        let targetTilt = 0;
+        if (this.currentSpeed > 0) {
+            targetTilt =
+                (-this.velocity.x / this.currentSpeed) * this.maxTilt;
+        }
+
+        this.tilt +=
+            (targetTilt - this.tilt) *
+            this.tiltSpeed *
+            deltaTime;
     }
-    
+
     updateLevel(level) {
         this.currentLevel = level;
-        
-        // aumenta a velocidade em 25% a cada 2 niveis
+
         const levelTiers = Math.floor(level / 2);
-        this.speedMultiplier = 1.0 + (levelTiers * 0.25);
+        this.speedMultiplier = 1.0 + levelTiers * 0.25;
     }
-    
+
     tryShoot() {
         if (this.canShoot && this.keys.space) {
             this.canShoot = false;
             this.shootTimer = this.shootCooldown;
             return true;
         }
-        //ainda nao deu tempo de cooldown
         return false;
     }
-    
     getCurrentSpeed() {
         return this.currentSpeed;
     }
-    
+
     getSpeedPorcentagem() {
-        // velocidade em porcentagem
         return (this.speedMultiplier - 1.0) * 100;
     }
-    
+
     getTotalSpeedMultiplier() {
         return this.speedMultiplier * this.accelerationMultiplier;
     }
-    
+
     getSpeedMultiplier() {
         return this.speedMultiplier;
     }
-    
+
     resetSpeed() {
         this.speedMultiplier = 1.0;
         this.currentLevel = 1;
         this.currentSpeed = this.baseSpeed;
         this.accelerationMultiplier = 1.0;
     }
-    
+
     getPosition() {
         return [
             this.gridX * this.gridSize,
-            0.4, // um pouco a cima do chao
+            0.4,
             this.gridZ * this.gridSize
         ];
     }
-    
+
     getDirection() {
-        // aponta para frente +z
         return [0, 0, 1];
     }
 
@@ -187,7 +178,13 @@ export class Ship {
         let modelMatrix = m4.identity();
         modelMatrix = m4.scale(modelMatrix, scale, scale, scale);
         modelMatrix = m4.yRotate(modelMatrix, Math.PI / 2);
-        modelMatrix = m4.translate(modelMatrix, position[0], position[1], position[2]);
+        modelMatrix = m4.zRotate(modelMatrix, this.tilt); // inclinação
+        modelMatrix = m4.translate(
+            modelMatrix,
+            position[0],
+            position[1],
+            position[2]
+        );
 
         this.drawOBJ(programInfo, viewMatrix, modelMatrix);
     }
@@ -221,22 +218,17 @@ export class Ship {
             } = part;
 
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-            if (positionLoc !== undefined && positionLoc >= 0) {
-                gl.enableVertexAttribArray(positionLoc);
-                gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
-            }
+            gl.enableVertexAttribArray(positionLoc);
+            gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
 
-            // Coordenadas de textura
-            if (texcoordLoc !== undefined && texcoordLoc >= 0 && texcoordBuffer) {
+            if (texcoordLoc !== undefined && texcoordBuffer) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
                 gl.enableVertexAttribArray(texcoordLoc);
                 gl.vertexAttribPointer(texcoordLoc, 2, gl.FLOAT, false, 0, 0);
             }
 
-            // Índices
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
-            // Textura da parte
             if (texture && programInfo.uniformLocations.texture) {
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, texture);
