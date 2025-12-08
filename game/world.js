@@ -1,72 +1,127 @@
+import { Sphere } from '../primitives/sphere.js';
+
 export class World {
-    constructor(gl, gridSize = 20) {
+    constructor(gl, starCount = 3000) {
         this.gl = gl;
-        this.gridSize = gridSize;
-        this.initGrid();
+        this.starCount = starCount;
+
+        this.planetAngle = 0;
+        this.timeAccumulator = 0;
+
+        this.stars = [];
+        this.initStars();
+        this.starBuffer = this.gl.createBuffer();
+
+        this.planetMesh = new Sphere(gl, 40); 
+        this.planetTexture = this.loadTexture('/SpaceRunner/assets/planets/jupiter.jpg'); //podemos escolher qualquer planeta
     }
 
-    initGrid() {
-        const positions = [];
-        const colors = [];
-        const halfSize = this.gridSize / 2;
+    loadTexture(url) {
+        const gl = this.gl;
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
 
-        for (let z = -halfSize; z <= halfSize; z++) {
-            positions.push(-halfSize, 0, z);
-            positions.push(halfSize, 0, z);
-            colors.push(0.3, 0.3, 0.3, 1.0);
-            colors.push(0.3, 0.3, 0.3, 1.0);
+        // temporary pixel
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+
+        const image = new Image();
+        image.onload = function() {
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+            
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        };
+        
+        image.onerror = function() {
+            console.error("ERRO IMG:", url);
+        };
+        image.src = url;
+        return texture;
+    }
+
+    initStars() {
+        for (let i = 0; i < this.starCount; i++) {
+            this.stars.push({
+                x: (Math.random() - 0.5) * 300,
+                y: (Math.random() - 0.5) * 200,
+                z: -Math.random() * 50 - 5
+            });
         }
+    }
 
-        for (let x = -halfSize; x <= halfSize; x++) {
-            positions.push(x, 0, -halfSize);
-            positions.push(x, 0, halfSize);
-            colors.push(0.3, 0.3, 0.3, 1.0);
-            colors.push(0.3, 0.3, 0.3, 1.0);
-        }
-
-        this.positionBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(positions), this.gl.STATIC_DRAW);
-
-        this.colorBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(colors), this.gl.STATIC_DRAW);
-
-        this.vertexCount = positions.length / 3;
+    update(deltaTime, shipZ) {
+        this.timeAccumulator += deltaTime;
+        this.planetAngle += deltaTime * 0.1; 
     }
 
     draw(programInfo, viewMatrix, projectionMatrix) {
-        let modelMatrix = m4.identity();
-        modelMatrix = m4.translate(modelMatrix, 0, -0.1, 0);
-        const modelViewMatrix = m4.multiply(viewMatrix, modelMatrix);
+        const gl = this.gl;
+        gl.disable(gl.DEPTH_TEST);
 
-        this.gl.uniformMatrix4fv(
-            programInfo.uniformLocations.modelViewMatrix,
-            false,
-            new Float32Array(modelViewMatrix)
-        );
+        const positions = [];
+        for (const star of this.stars) positions.push(star.x, star.y, star.z);
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.starBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.DYNAMIC_DRAW);
 
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
-        this.gl.vertexAttribPointer(
-            programInfo.attribLocations.position,
-            3,
-            this.gl.FLOAT,
-            false,
-            0,
-            0);
-        this.gl.enableVertexAttribArray(programInfo.attribLocations.position);
+        const fixedViewMatrix = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, fixedViewMatrix);
+        
+        if (projectionMatrix) gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
 
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorBuffer);
-        this.gl.vertexAttribPointer(
-            programInfo.attribLocations.color,
-            4,
-            this.gl.FLOAT,
-            false,
-            0,
-            0);
-        this.gl.enableVertexAttribArray(programInfo.attribLocations.color);
+        if (programInfo.uniformLocations.useTexture) {
+            gl.uniform1i(programInfo.uniformLocations.useTexture, 0); 
+        }
 
-        // desenha grid
-        this.gl.drawArrays(this.gl.LINES, 0, this.vertexCount);
+        const posLoc = programInfo.attribLocations.position;
+        gl.enableVertexAttribArray(posLoc);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.starBuffer);
+        gl.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0);
+
+        const colorLoc = programInfo.attribLocations.color;
+        if (colorLoc !== -1) {
+            gl.disableVertexAttribArray(colorLoc);
+            gl.vertexAttrib4f(colorLoc, 1.0, 1.0, 1.0, 1.0);
+        }
+        
+        if (programInfo.attribLocations.textureCoord !== -1) gl.disableVertexAttribArray(programInfo.attribLocations.textureCoord);
+        if (programInfo.attribLocations.normal !== -1) gl.disableVertexAttribArray(programInfo.attribLocations.normal);
+
+        gl.drawArrays(gl.POINTS, 0, this.starCount);
+
+        if (this.planetTexture) {
+            if (programInfo.uniformLocations.useTexture) {
+                gl.uniform1i(programInfo.uniformLocations.useTexture, 1); 
+            }
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.planetTexture);
+            
+            if (programInfo.uniformLocations.uTexture) gl.uniform1i(programInfo.uniformLocations.uTexture, 0);
+
+            const scale = 15.0; 
+            const x = 40.0;
+            const y = 20.0 + Math.sin(this.timeAccumulator * 0.5) * 2.0;
+            const z = -80.0;
+            
+            const cosA = Math.cos(this.planetAngle);
+            const sinA = Math.sin(this.planetAngle);
+
+            const planetMatrix = new Float32Array([
+                scale * cosA,   0,       scale * -sinA,  0,
+                0,              scale,   0,              0,
+                scale * sinA,   0,       scale * cosA,   0,
+                x,              y,       z,              1
+            ]);
+
+            gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, planetMatrix);
+
+            this.planetMesh.draw(programInfo);
+        }
+
+        gl.enable(gl.DEPTH_TEST);
     }
 }
