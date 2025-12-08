@@ -7,6 +7,10 @@ import { AsteroidManager } from './game/obstacle.js';
 import { BossManager } from './game/boss.js';
 import { Projectile } from './game/projectile.js';
 
+// UI Imports
+import { HUD } from './ui/hud.js';
+import { GameOverScreen } from './ui/gameOver.js';
+
 let gl;
 let programInfo;
 let ship;
@@ -17,8 +21,13 @@ let bossManager;
 let projectiles = [];
 let lastTime = 0;
 
+let hud;
+let gameOverScreen;
+
 async function init() {
     const canvas = document.querySelector('#glCanvas');
+    if (!canvas) return;
+
     gl = initWebGL(canvas);
 
     const vertexShaderSource = await loadShader('./shaders/vertex.glsl');
@@ -33,10 +42,8 @@ async function init() {
         attribLocations: {
             position:       gl.getAttribLocation(shaderProgram, 'aPosition'),
             color:          gl.getAttribLocation(shaderProgram, 'aColor'),
-
             vertexPosition: gl.getAttribLocation(shaderProgram, 'aPosition'),
             vertexColor:    gl.getAttribLocation(shaderProgram, 'aColor'),
-
             normal:         gl.getAttribLocation(shaderProgram, 'aNormal'),
             vertexNormal:   gl.getAttribLocation(shaderProgram, 'aNormal'),
             textureCoord:   gl.getAttribLocation(shaderProgram, 'aTexcoord'),
@@ -44,8 +51,6 @@ async function init() {
         uniformLocations: {
             modelViewMatrix:  gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
             projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-
-            // para textura da nave
             texture:    gl.getUniformLocation(shaderProgram, 'uTexture'),
             uTexture:   gl.getUniformLocation(shaderProgram, 'uTexture'), 
             useTexture: gl.getUniformLocation(shaderProgram, 'uUseTexture'),
@@ -53,34 +58,27 @@ async function init() {
     };
 
     ship = new Ship(gl);
-    world = new World(gl, 20);
+    world = new World(gl, 2000);
     asteroidManager = new AsteroidManager(gl, ship);
     bossManager = new BossManager(gl, asteroidManager);
     projectiles = [];
-    console.log('player criado na posicao', ship.getPosition());
-
+    
     camera = new Camera();
+    
+    resizeCanvasToDisplaySize(gl.canvas);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     camera.updateProjectionMatrix(gl.canvas.width / gl.canvas.height);
 
-    // troca de camera
     window.addEventListener('keydown', (e) => {
-        if (e.key === '1') {
-            cameraModeIndex = 0;
-            camera.switchMode(0);
-        } else if (e.key === '2') {
-            cameraModeIndex = 1;
-            camera.switchMode(1);
-        }
+        if (e.key === '1') camera.switchMode(0);
+        else if (e.key === '2') camera.switchMode(1);
     });
 
     requestAnimationFrame(render);
 }
 
 function update(deltaTime) {
-    // corrige erro atualizando mesmo após game over
-    if (gameOverScreen && gameOverScreen.isGameOverActive()) {
-        return;
-    }
+    if (gameOverScreen && gameOverScreen.isGameOverActive()) return;
     
     ship.update(deltaTime);
     
@@ -90,7 +88,6 @@ function update(deltaTime) {
         projectiles.push(projectile);
     }
     
-    // atualiza projeteis
     for (let i = projectiles.length - 1; i >= 0; i--) {
         const proj = projectiles[i];
         proj.update(deltaTime);
@@ -114,19 +111,12 @@ function update(deltaTime) {
             continue;
         }
         
-        // Check collision with boss
         const bossHitResult = bossManager.verificaColisaoBoss(proj.getPosition(), proj.getRadius());
         if (bossHitResult.hit) {
             projectiles.splice(i, 1);
-            
             if (hud) {
-                if (bossHitResult.destroyed) {
-                    // pontuacao se derrotou boss
-                    hud.addScore(bossHitResult.scoreBonus);
-                } else {
-                    // pontuacao se acertou o boss
-                    hud.addScore(50);
-                }
+                if (bossHitResult.destroyed) hud.addScore(bossHitResult.scoreBonus);
+                else hud.addScore(50);
             }
         }
     }
@@ -134,32 +124,28 @@ function update(deltaTime) {
     updateSpeedIndicator();
     
     const collisionResult = asteroidManager.update(deltaTime);
-    
     const currentLevel = asteroidManager.getDifficultyLevel() + 1;
-    
     ship.updateLevel(currentLevel);
     
     const shipPosition = ship.getPosition();
+    
+    // Atualiza estrelas (sem movimento agora)
+    world.update(deltaTime, shipPosition[2]);
+    
     bossManager.update(deltaTime, currentLevel, shipPosition);
     
     if (hud) {
         hud.updateLevel(currentLevel);
-        
         updateBossHealthBar();
     }
     
-    if (collisionResult.scoreGained > 0 && hud) {
-        hud.addScore(collisionResult.scoreGained);
-    }
+    if (collisionResult.scoreGained > 0 && hud) hud.addScore(collisionResult.scoreGained);
     
     if (collisionResult.collision && hud) {
         hud.loseLife();
-        if (hud.isGameOver()) {
-            handleGameOver();
-        }
+        if (hud.isGameOver()) handleGameOver();
     }
     
-    // atualiza a camera para seguir o player
     const shipDirection = ship.getDirection();
     camera.setShipTransform(shipPosition, shipDirection);
     camera.updateViewMatrix();
@@ -174,20 +160,13 @@ function handleGameOver() {
 
 function updateSpeedIndicator() {
     const speedBoostPorcentagem = ship.getSpeedPorcentagem();
-    
     const speedBarFill = document.getElementById('speed-bar-fill');
     const speedValue = document.getElementById('speed-value');
-    const speedLabel = document.getElementById('speed-label');
     
     if (speedBarFill && speedValue) {
         speedBarFill.style.width = speedBoostPorcentagem + '%';
-        
         speedValue.textContent = '+' + speedBoostPorcentagem.toFixed(1) + '%';
         speedValue.style.color = '#00ff88'; 
-    }
-    
-    if (speedLabel) {
-        speedLabel.textContent = 'SPEED';
     }
 }
 
@@ -199,24 +178,20 @@ function updateBossHealthBar() {
     if (bossManager.isBossActive()) {
         const boss = bossManager.getBoss();
         const healthPercent = boss.getHealthPorcentagem();
-        
         if (bossHealthBar) {
             bossHealthBar.style.display = 'flex';
-            if (bossHealthFill) {
-                bossHealthFill.style.width = healthPercent + '%';
-            }
-            if (bossHealthText) {
-                bossHealthText.textContent = `${boss.health}/${boss.maxHealth}`;
-            }
+            if (bossHealthFill) bossHealthFill.style.width = healthPercent + '%';
+            if (bossHealthText) bossHealthText.textContent = `${boss.health}/${boss.maxHealth}`;
         }
     } else {
-        if (bossHealthBar) {
-            bossHealthBar.style.display = 'none';
-        }
+        if (bossHealthBar) bossHealthBar.style.display = 'none';
     }
 }
 
 function draw() {
+    // ============================================
+    // MUDANÇA AQUI: Voltamos para PRETO (0,0,0)
+    // ============================================
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clearDepth(1.0);
     gl.enable(gl.DEPTH_TEST);
@@ -229,16 +204,19 @@ function draw() {
         gl.uniform1i(programInfo.uniformLocations.useTexture, 0);
     }
 
+    const projMatrix = camera.getProjectionMatrix();
+    if (projMatrix) {
+        gl.uniformMatrix4fv(
+            programInfo.uniformLocations.projectionMatrix,
+            false,
+            projMatrix
+        );
+    }
 
-    gl.uniformMatrix4fv(
-        programInfo.uniformLocations.projectionMatrix,
-        false,
-        camera.getProjectionMatrix()
-    );
-
-    // desenha world grid
+    // Desenha as estrelas fixas
     world.draw(programInfo, camera.getViewMatrix(), camera.getProjectionMatrix());
 
+    // Resto do jogo
     asteroidManager.draw(programInfo, camera.getViewMatrix(), camera.getProjectionMatrix());
     bossManager.draw(programInfo, camera.getViewMatrix(), camera.getProjectionMatrix());
 
@@ -250,11 +228,10 @@ function draw() {
 }
 
 function render(timeAtual) {
-    timeAtual *= 0.001; // converte para segundos
+    timeAtual *= 0.001;
     const deltaTime = timeAtual - lastTime;
     lastTime = timeAtual;
 
-    // Update canvas size if needed
     if (resizeCanvasToDisplaySize(gl.canvas)) {
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         camera.updateProjectionMatrix(gl.canvas.width / gl.canvas.height);
@@ -266,37 +243,22 @@ function render(timeAtual) {
     requestAnimationFrame(render);
 }
 
-// HUD DURANTE O JOGO
-import { HUD } from './ui/hud.js';
-import { GameOverScreen } from './ui/gameOver.js';
-
-let hud;
-let gameOverScreen;
-
 function resetGame() {
     hud.reset();
-    
     ship.gridX = 0;
     ship.gridZ = 0;
     ship.velocity = { x: 0, z: 0 };
     ship.resetSpeed();
-    
     asteroidManager.reset();
-    
     bossManager.reset();
-    
     projectiles = [];
 }
 
 async function initGame() {
     await init();
-    
     hud = new HUD();
-    
     gameOverScreen = new GameOverScreen();
-    gameOverScreen.onRestart(() => {
-        resetGame();
-    });
+    gameOverScreen.onRestart(() => resetGame());
 }
 
 initGame().catch(console.error);

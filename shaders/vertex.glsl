@@ -13,7 +13,9 @@ varying vec2 vTexcoord;
 void main() {
     gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
 
-    vColor = aColor;
+    gl_PointSize = 3.5;
 
+    vColor = aColor;
     vTexcoord = aTexcoord;
+
 }
