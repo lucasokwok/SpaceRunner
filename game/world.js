@@ -13,7 +13,7 @@ export class World {
         this.starBuffer = this.gl.createBuffer();
 
         this.planetMesh = new Sphere(gl, 40); 
-        this.planetTexture = this.loadTexture('/SpaceRunner/assets/planets/jupiter.jpg'); //podemos escolher qualquer planeta
+        this.planetTexture = this.loadTexture('../assets/planets/jupiter.jpg'); //podemos escolher qualquer planeta
     }
 
     loadTexture(url) {
