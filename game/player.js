@@ -201,27 +201,43 @@ export class Ship {
             new Float32Array(modelViewMatrix)
         );
 
+        if (programInfo.uniformLocations.emissive) {
+            gl.uniform1f(programInfo.uniformLocations.emissive, 0.3);
+        }
+
         if (programInfo.uniformLocations.useTexture) {
             gl.uniform1i(programInfo.uniformLocations.useTexture, 1);
         }
 
-        const positionLoc = programInfo.attribLocations.vertexPosition;
+        const positionLoc = programInfo.attribLocations.position || 
+                           programInfo.attribLocations.vertexPosition;
+        const normalLoc = programInfo.attribLocations.normal || 
+                         programInfo.attribLocations.vertexNormal;
         const texcoordLoc = programInfo.attribLocations.textureCoord;
 
         for (const part of this.modelParts) {
             const {
                 vertexBuffer,
+                normalBuffer,
                 texcoordBuffer,
                 indexBuffer,
                 indexCount,
                 texture,
             } = part;
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-            gl.enableVertexAttribArray(positionLoc);
-            gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+            if (positionLoc !== undefined && positionLoc !== -1) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+                gl.enableVertexAttribArray(positionLoc);
+                gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0);
+            }
 
-            if (texcoordLoc !== undefined && texcoordBuffer) {
+            if (normalLoc !== undefined && normalLoc !== -1 && normalBuffer) {
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+                gl.enableVertexAttribArray(normalLoc);
+                gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0);
+            }
+
+            if (texcoordLoc !== undefined && texcoordLoc !== -1 && texcoordBuffer) {
                 gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
                 gl.enableVertexAttribArray(texcoordLoc);
                 gl.vertexAttribPointer(texcoordLoc, 2, gl.FLOAT, false, 0, 0);
@@ -236,6 +252,11 @@ export class Ship {
             }
 
             gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_SHORT, 0);
+        }
+
+        // volta brilho 0
+        if (programInfo.uniformLocations.emissive) {
+            gl.uniform1f(programInfo.uniformLocations.emissive, 0.0);
         }
     }
 }

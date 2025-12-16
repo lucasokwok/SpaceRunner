@@ -13,7 +13,7 @@ export class World {
         this.starBuffer = this.gl.createBuffer();
 
         this.planetMesh = new Sphere(gl, 40); 
-        this.planetTexture = this.loadTexture('../assets/planets/jupiter.jpg'); //podemos escolher qualquer planeta
+        this.planetTexture = this.loadTexture('../assets/planets/sun.jpg'); //podemos escolher qualquer planeta
     }
 
     loadTexture(url) {
@@ -93,6 +93,10 @@ export class World {
         gl.drawArrays(gl.POINTS, 0, this.starCount);
 
         if (this.planetTexture) {
+            if (programInfo.uniformLocations.emissive) {
+                gl.uniform1f(programInfo.uniformLocations.emissive, 0.4);
+            }
+
             if (programInfo.uniformLocations.useTexture) {
                 gl.uniform1i(programInfo.uniformLocations.useTexture, 1); 
             }
