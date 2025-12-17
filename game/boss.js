@@ -173,7 +173,7 @@ export class BossManager {
         this.asteroidManager = asteroidManager;
         this.boss = new Boss(gl);
 
-        this.bossLevel = 1; // teste
+        this.bossLevel = 3; // teste
         this.nextBossLevel = this.bossLevel;
 
         this.bossActive = false;

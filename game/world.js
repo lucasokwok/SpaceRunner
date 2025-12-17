@@ -13,7 +13,7 @@ export class World {
         this.starBuffer = this.gl.createBuffer();
 
         this.planetMesh = new Sphere(gl, 40); 
-        this.planetTexture = this.loadTexture('../assets/planets/jupiter.jpg'); //podemos escolher qualquer planeta
+        this.planetTexture = this.loadTexture('../assets/planets/sun.jpg'); //podemos escolher qualquer planeta
     }
 
     loadTexture(url) {
@@ -47,7 +47,7 @@ export class World {
             this.stars.push({
                 x: (Math.random() - 0.5) * 300,
                 y: (Math.random() - 0.5) * 200,
-                z: -Math.random() * 50 - 5
+                z: -Math.random() * 50 
             });
         }
     }
@@ -93,6 +93,11 @@ export class World {
         gl.drawArrays(gl.POINTS, 0, this.starCount);
 
         if (this.planetTexture) {
+            // brilho d planeta 
+            if (programInfo.uniformLocations.emissive) {
+                gl.uniform1f(programInfo.uniformLocations.emissive, 0.4);
+            }
+            
             if (programInfo.uniformLocations.useTexture) {
                 gl.uniform1i(programInfo.uniformLocations.useTexture, 1); 
             }
@@ -120,6 +125,11 @@ export class World {
             gl.uniformMatrix4fv(programInfo.uniformLocations.modelViewMatrix, false, planetMatrix);
 
             this.planetMesh.draw(programInfo);
+            
+            // Vbrilho 0
+            if (programInfo.uniformLocations.emissive) {
+                gl.uniform1f(programInfo.uniformLocations.emissive, 0.0);
+            }
         }
 
         gl.enable(gl.DEPTH_TEST);

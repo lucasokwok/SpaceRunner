@@ -97,20 +97,6 @@ function update(deltaTime) {
             continue;
         }
         
-        let hitAsteroid = false;
-        for (const asteroid of asteroidManager.asteroids) {
-            if (proj.verificaColisaoAsteroid(asteroid.getPosition(), asteroid.getRadius())) {
-                proj.desativa();
-                hitAsteroid = true;
-                break;
-            }
-        }
-        
-        if (hitAsteroid) {
-            projectiles.splice(i, 1);
-            continue;
-        }
-        
         const bossHitResult = bossManager.verificaColisaoBoss(proj.getPosition(), proj.getRadius());
         if (bossHitResult.hit) {
             projectiles.splice(i, 1);

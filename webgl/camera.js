@@ -64,20 +64,7 @@ export class Camera {
                 shipPos[1] + 0.5,
                 shipPos[2] + shipDir[2] * 2
             ];
-            fov = 60 * Math.PI / 180;
-        } else if (this.mode === 'side') {
-            pos = [
-                shipPos[0] + 8,  
-                shipPos[1] + 3,  
-                shipPos[2] - 2   
-            ];
-
-            target = [
-                shipPos[0],
-                shipPos[1] + 0.3,  
-                shipPos[2] + 1     
-            ];
-            fov = 55 * Math.PI / 180;  
+            fov = 60 * Math.PI / 180; 
         } else {
             pos = this.position;
             target = this.target;
@@ -90,7 +77,6 @@ export class Camera {
 
         this.viewMatrix = Camera._lookAt(this.position, this.target, up);
     }
-
 
     updateProjectionMatrix(aspect) {
         this.aspect = aspect;
