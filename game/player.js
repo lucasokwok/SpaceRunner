@@ -189,6 +189,7 @@ export class Ship {
         this.drawOBJ(programInfo, viewMatrix, modelMatrix);
     }
 
+    //brilho d nave
     drawOBJ(programInfo, viewMatrix, modelMatrix) {
         const gl = this.gl;
         if (!this.modelParts || !this.modelLoaded) return;
@@ -201,6 +202,7 @@ export class Ship {
             new Float32Array(modelViewMatrix)
         );
 
+        // brilho nave
         if (programInfo.uniformLocations.emissive) {
             gl.uniform1f(programInfo.uniformLocations.emissive, 0.3);
         }
