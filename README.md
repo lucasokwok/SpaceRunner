@@ -4,7 +4,7 @@ Practical project developed for the **Computer Graphics** course at **UNIFESP**.
 
 This project is a 3D _space runner_ game in which the player controls a spaceship, avoids obstacles, fights enemies, and tries to achieve the highest score possible.
 
-![Screenshot 1 of Space Runner](./img1-spacerunners.jpeg)
+![Screenshot 1 of Space Runner](./assets/readme/img1-spacerunners.jpeg)
 
 ## About the project
 
@@ -85,11 +85,11 @@ SpaceRunner/
 
 ### Screenshot 2
 
-![Screenshot 2 of Space Runner](./img2-spacerunners.jpeg)
+![Screenshot 2 of Space Runner](./assets/readme/img2-spacerunners.jpeg)
 
 ### Screenshot 3
 
-![Screenshot 3 of Space Runner](./img3-spacerunners.jpeg)
+![Screenshot 3 of Space Runner](./assets/readme/img3-spacerunners.jpeg)
 
 ## Final remarks
 
